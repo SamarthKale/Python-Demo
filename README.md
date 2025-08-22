@@ -32,3 +32,6 @@ python -m venv .venv
 
 # On macOS/Linux:
 source .venv/bin/activate
+
+#Run this command
+pip install ursina==5.2.0 mediapipe==0.10.14 opencv-python==4.10.0.84 numpy==1.26.4 matplotlib==3.9.2 panda3d==1.10.14

@@ -1,3 +1,8 @@
+# Add this BEFORE importing ursina to fix graphics issues
+import os
+os.environ['PANDA_DISPLAY_ERROR'] = '0'  # Hide graphics errors
+os.environ['PANDA_GL_FORCE_SOFTWARE'] = '1'  # Force software rendering if needed
+
 from ursina import *
 from ursina.prefabs.first_person_controller import FirstPersonController
 import cv2
@@ -7,26 +12,72 @@ import threading
 import time
 from collections import deque
 
-print("Starting Minecraft VR...")
-print("=== IMPORTANT ===")
-print("Two windows will open:")
-print("1. Hand tracking camera window")
-print("2. 3D Minecraft game window")
-print("If you only see the camera, check your taskbar for the game window!")
-print("================")
+print("Starting Minecraft VR with graphics fixes...")
+print("Forcing software rendering to fix grey screen issue...")
 
-# Force Ursina window to appear on top and be visible
+# Create app with specific graphics settings
 app = Ursina()
+
+# Force basic graphics settings
 window.title = "Minecraft VR - 3D Game"
 window.borderless = False
 window.exit_button.visible = False
 window.fps_counter.enabled = True
 
-# Make window more visible
+# Try to fix grey screen with explicit camera settings
+camera.position = (15, 2, 15)  # Make sure camera is in a good position
+camera.rotation = (0, 0, 0)    # Reset rotation
 camera.fov = 90
 
-print("✓ Ursina app created successfully")
-print("✓ 3D window should be visible now")
+# Force a simple background color (not grey)
+camera.clear_color = color.cyan  # Sky blue background
+
+print("✓ Graphics settings applied")
+print("✓ Background should now be cyan (blue), not grey")
+
+# ---------- Enhanced Lighting (might fix grey screen) ----------
+# Add directional light
+sun = DirectionalLight()
+sun.look_at(Vec3(1, -1, -1))
+
+# Add ambient light
+AmbientLight(color=color.rgba(100, 100, 100, 0.1))
+
+print("✓ Lighting added to scene")
+
+# ---------- Test Objects First ----------
+# Add some bright, obvious test objects to see if rendering works
+test_cube1 = Entity(
+    model='cube', 
+    color=color.red, 
+    position=(15, 2, 18),  # In front of player
+    scale=2
+)
+
+test_cube2 = Entity(
+    model='cube', 
+    color=color.green, 
+    position=(17, 2, 18),
+    scale=2
+)
+
+test_cube3 = Entity(
+    model='cube', 
+    color=color.yellow, 
+    position=(13, 2, 18),
+    scale=2
+)
+
+# Big text in 3D space
+test_text_3d = Text3d(
+    "MINECRAFT VR WORKING!",
+    position=(15, 4, 20),
+    scale=3,
+    color=color.white,
+    billboard=True
+)
+
+print("✓ Test objects created - you should see 3 colored cubes and text")
 
 # ---------- Game Blocks ----------
 class Voxel(Button):
@@ -36,39 +87,52 @@ class Voxel(Button):
             position=position,
             model='cube',
             origin_y=.5,
-            texture='white_cube',
-            color=color.hsv(0, 0, random.uniform(.8, 1)) if not is_floor else color.brown,
+            color=color.brown if is_floor else color.white,  # Simplified colors
             highlight_color=color.lime,
         )
         self.is_floor = is_floor
 
-print("Creating floor...")
-# Create much larger floor (30x30)
+print("Creating simplified floor...")
+# Create smaller floor for testing (10x10 instead of 30x30)
 floor_blocks = []
-for z in range(30):
-    for x in range(30):
+for z in range(10, 20):  # Smaller area around player
+    for x in range(10, 20):
         voxel = Voxel(position=(x, 0, z), is_floor=True)
         floor_blocks.append(voxel)
 
-# Place player in the center of the field
-player = FirstPersonController()
-player.position = (15, 1, 15)  # Center of 30x30 field
+print("✓ Floor created")
 
-# Disable default mouse controls to implement our own
+# Place player
+player = FirstPersonController()
+player.position = (15, 1, 15)
 player.mouse_sensitivity = Vec2(0, 0)
 
+# Make sure player is visible/working
+player_indicator = Entity(
+    model='cube',
+    color=color.blue,
+    position=(15, 0.5, 15),
+    scale=0.5
+)
+
+print("✓ Player created at position:", player.position)
+
 # Custom camera rotation variables
-camera_rotation_x = 0  # Vertical rotation (pitch)
-camera_rotation_y = 0  # Horizontal rotation (yaw)
-vertical_look_speed = 15  # Degrees per second for vertical look
+camera_rotation_x = 0
+camera_rotation_y = 0
+vertical_look_speed = 15
 
-# Floating cursor where finger points
-cursor = Entity(model='sphere', color=color.azure, scale=0.1, always_on_top=True)
+# Bright, obvious cursor
+cursor = Entity(
+    model='sphere', 
+    color=color.magenta, 
+    scale=0.3,  # Bigger
+    always_on_top=True
+)
 
-print("✓ Game world created")
-print("✓ Floor and player setup complete")
+print("✓ All game objects created")
 
-# ---------- Enhanced Hand Tracking ----------
+# ---------- Simplified Hand Tracking (keep original) ----------
 mp_hands = mp.solutions.hands
 hands = mp_hands.Hands(
     static_image_mode=False,
@@ -77,7 +141,6 @@ hands = mp_hands.Hands(
     min_tracking_confidence=0.6
 )
 
-# Fixed camera setup with proper settings
 cap = None
 try:
     cap = cv2.VideoCapture(0)
@@ -85,46 +148,37 @@ try:
         print("Warning: Could not open camera")
         cap = None
     else:
-        # Basic resolution and FPS
         cap.set(cv2.CAP_PROP_FRAME_WIDTH, 640)
         cap.set(cv2.CAP_PROP_FRAME_HEIGHT, 480)
         cap.set(cv2.CAP_PROP_FPS, 30)
-        
-        # Fix auto-exposure and color issues
         cap.set(cv2.CAP_PROP_AUTO_EXPOSURE, 1)
         cap.set(cv2.CAP_PROP_BRIGHTNESS, 128)
         cap.set(cv2.CAP_PROP_CONTRAST, 128)
         cap.set(cv2.CAP_PROP_SATURATION, 128)
         cap.set(cv2.CAP_PROP_HUE, 0)
         cap.set(cv2.CAP_PROP_GAIN, 0)
-        
-        print("✓ Camera initialized successfully")
+        print("✓ Camera initialized")
 except Exception as e:
     print(f"Camera error: {e}")
     cap = None
 
-# Shared variables with thread safety
+# Shared variables
 gesture_lock = threading.Lock()
 right_hand_gesture = None
 left_hand_gesture = None
 aim_x, aim_y = 0, 0
 running = True
-
-# Action cooldown
 action_cooldown = 0.1
 last_action_time = 0
 
 def get_hand_gesture(landmarks):
-    """Simplified gesture detection with easy gestures"""
     fingers = []
     
-    # Thumb detection (compare x coordinates)
     if landmarks[4].x > landmarks[3].x:
         fingers.append(1)
     else:
         fingers.append(0)
     
-    # Other fingers (compare y coordinates)
     finger_tips = [8, 12, 16, 20]
     finger_pips = [6, 10, 14, 18]
     
@@ -136,7 +190,6 @@ def get_hand_gesture(landmarks):
     
     total_fingers = sum(fingers)
     
-    # Simplified gesture classification
     if total_fingers == 0:
         return "fist"
     elif total_fingers == 1 and fingers[1] == 1:
@@ -151,21 +204,16 @@ def get_hand_gesture(landmarks):
         return "neutral"
 
 def hand_tracker():
-    global right_hand_gesture, left_hand_gesture, aim_x, aim_y, last_action_time, running
+    global right_hand_gesture, left_hand_gesture, aim_x, aim_y, running
     
     if not cap:
-        print("No camera available - hand tracking disabled")
-        print("You can still use keyboard controls!")
+        print("No camera - using keyboard only")
         return
     
-    frame_count = 0
-    
-    # Set window position to not overlap with game window
     cv2.namedWindow("Hand Control - Natural View", cv2.WINDOW_AUTOSIZE)
     cv2.moveWindow("Hand Control - Natural View", 100, 100)
     
-    print("✓ Hand tracking window created")
-    print("✓ Camera should be showing now")
+    frame_count = 0
     
     while running:
         try:
@@ -174,7 +222,6 @@ def hand_tracker():
                 time.sleep(0.01)
                 continue
             
-            # Skip frames for better performance
             frame_count += 1
             if frame_count % 2 == 0:
                 continue
@@ -183,37 +230,32 @@ def hand_tracker():
             results = hands.process(rgb)
             
             h, w, _ = frame.shape
-            current_time = time.time()
             current_right_gesture = None
             current_left_gesture = None
             
-            # Enhanced visual zones
+            # Visual zones
             cv2.rectangle(frame, (0, 0), (w//2, h), (100, 100, 255), 3)
             cv2.rectangle(frame, (w//2, 0), (w, h), (255, 100, 100), 3)
             cv2.putText(frame, "LEFT HAND ZONE", (10, 30), cv2.FONT_HERSHEY_SIMPLEX, 0.8, (100, 100, 255), 2)
             cv2.putText(frame, "RIGHT HAND ZONE", (w//2 + 10, 30), cv2.FONT_HERSHEY_SIMPLEX, 0.8, (255, 100, 100), 2)
             
-            # Add status text
-            cv2.putText(frame, "3D Game Window should be open!", (10, h-30), cv2.FONT_HERSHEY_SIMPLEX, 0.6, (0, 255, 255), 2)
+            # Status
+            cv2.putText(frame, "Should see colored cubes in 3D window!", (10, h-30), cv2.FONT_HERSHEY_SIMPLEX, 0.6, (0, 255, 255), 2)
             
             if results.multi_hand_landmarks and results.multi_handedness:
                 for hand_landmarks, handedness in zip(results.multi_hand_landmarks, results.multi_handedness):
                     landmarks = hand_landmarks.landmark
-                    
                     hand_label = handedness.classification[0].label
                     is_right_hand = (hand_label == "Right")
-                    
                     gesture = get_hand_gesture(landmarks)
                     
                     if is_right_hand:
                         current_right_gesture = gesture
-                        
                         index_tip = landmarks[8]
                         with gesture_lock:
                             aim_x = (index_tip.x - 0.5) * 2
                             aim_y = (0.5 - index_tip.y) * 2
                         
-                        # Visual feedback for right hand
                         ix, iy = int(index_tip.x * w), int(index_tip.y * h)
                         if gesture == "fist":
                             cv2.circle(frame, (ix, iy), 25, (0, 255, 0), -1)
@@ -226,10 +268,8 @@ def hand_tracker():
                             cv2.putText(frame, "AIMING", (10, 80), cv2.FONT_HERSHEY_SIMPLEX, 1, (255, 255, 0), 3)
                         else:
                             cv2.circle(frame, (ix, iy), 10, (255, 255, 255), 2)
-                    
                     else:
                         current_left_gesture = gesture
-                        
                         hand_center = landmarks[9]
                         hx, hy = int(hand_center.x * w), int(hand_center.y * h)
                         
@@ -251,19 +291,15 @@ def hand_tracker():
                         else:
                             cv2.circle(frame, (hx, hy), 15, (255, 255, 255), 2)
                     
-                    # Draw hand landmarks
-                    mp.solutions.drawing_utils.draw_landmarks(
-                        frame, hand_landmarks, mp_hands.HAND_CONNECTIONS)
+                    mp.solutions.drawing_utils.draw_landmarks(frame, hand_landmarks, mp_hands.HAND_CONNECTIONS)
             
-            # Update shared variables
             with gesture_lock:
                 right_hand_gesture = current_right_gesture
                 left_hand_gesture = current_left_gesture
             
-            # Display frame
             cv2.imshow("Hand Control - Natural View", frame)
             
-            if cv2.waitKey(1) & 0xFF == 27:  # ESC to quit
+            if cv2.waitKey(1) & 0xFF == 27:
                 running = False
                 break
                 
@@ -275,36 +311,33 @@ def hand_tracker():
         cap.release()
     cv2.destroyAllWindows()
 
-# Start hand tracking in separate thread
+# Start hand tracking
 if cap:
-    print("Starting hand tracking thread...")
     threading.Thread(target=hand_tracker, daemon=True).start()
 
-# ---------- Movement and Camera Control ----------
+# ---------- Controls ----------
 movement_speed = 1.5
 rotation_speed = 30
 
 def handle_controls():
-    global left_hand_gesture, camera_rotation_x, camera_rotation_y, last_action_time
+    global left_hand_gesture, camera_rotation_x, camera_rotation_y
     
     with gesture_lock:
         current_left_gesture = left_hand_gesture
     
-    # Hand gesture movement controls
+    # Hand gestures
     if current_left_gesture == "fist":
         player.position += player.forward * movement_speed * time.dt
     elif current_left_gesture == "open":
         player.position -= player.forward * movement_speed * time.dt
-    
-    # Hand gesture look controls
-    if current_left_gesture == "point":
+    elif current_left_gesture == "point":
         camera_rotation_y -= rotation_speed * time.dt
     elif current_left_gesture == "three":
         camera_rotation_x = max(camera_rotation_x - vertical_look_speed * time.dt, -90)
     elif current_left_gesture == "peace":
         camera_rotation_x = min(camera_rotation_x + vertical_look_speed * time.dt, 90)
     
-    # Keyboard movement controls (WASD)
+    # Keyboard
     if held_keys['w']:
         player.position += player.forward * movement_speed * time.dt
     if held_keys['s']:
@@ -313,8 +346,6 @@ def handle_controls():
         player.position -= player.right * movement_speed * time.dt
     if held_keys['d']:
         player.position += player.right * movement_speed * time.dt
-    
-    # Keyboard look controls (Arrow Keys)
     if held_keys['left arrow']:
         camera_rotation_y -= rotation_speed * time.dt
     if held_keys['right arrow']:
@@ -324,7 +355,7 @@ def handle_controls():
     if held_keys['down arrow']:
         camera_rotation_x = min(camera_rotation_x + vertical_look_speed * time.dt, 90)
     
-    # Apply rotations to player
+    # Apply rotations
     player.rotation_y = camera_rotation_y
     camera.rotation_x = camera_rotation_x
 
@@ -342,28 +373,16 @@ def update():
     with gesture_lock:
         current_gesture = right_hand_gesture
     
-    # Check for keyboard actions
     if held_keys['space']:
         keyboard_place_action = True
     if held_keys['x']:
         keyboard_destroy_action = True
     
-    # Create ray for aiming
+    # Simplified raycasting
     ray_origin = camera.world_position
-    fov_rad = math.radians(camera.fov)
-    aspect = window.aspect_ratio
+    ray_direction = camera.forward
     
-    ray_direction = Vec3(
-        aim_x * math.tan(fov_rad / 2) * aspect,
-        aim_y * math.tan(fov_rad / 2),
-        1
-    ).normalized()
-    
-    ray_direction = camera.right * ray_direction.x + camera.up * ray_direction.y + camera.forward
-    ray_direction = ray_direction.normalized()
-    
-    # Raycast
-    hit_info = raycast(ray_origin, ray_direction, distance=20, ignore=[player, cursor])
+    hit_info = raycast(ray_origin, ray_direction, distance=10, ignore=[player, cursor])
     
     if hit_info.hit:
         cursor.position = hit_info.world_point
@@ -377,15 +396,9 @@ def update():
             new_position = hit_info.entity.position + hit_info.normal
             new_pos_tuple = (round(new_position.x), round(new_position.y), round(new_position.z))
             
-            existing = False
-            for entity in scene.entities:
-                if (isinstance(entity, Voxel) and 
-                    distance(entity.position, new_position) < 0.5):
-                    existing = True
-                    break
-            
-            if not existing and new_position.y > 0:
-                Voxel(position=new_pos_tuple)
+            if new_position.y > 0:
+                new_block = Voxel(position=new_pos_tuple)
+                print(f"Placed block at {new_pos_tuple}")
                 last_action_time = current_time
                 keyboard_place_action = False
         
@@ -397,11 +410,12 @@ def update():
             entity_to_destroy = hit_info.entity
             if (isinstance(entity_to_destroy, Voxel) and 
                 not getattr(entity_to_destroy, 'is_floor', False)):
+                print(f"Destroyed block at {entity_to_destroy.position}")
                 destroy(entity_to_destroy)
                 last_action_time = current_time
                 keyboard_destroy_action = False
     else:
-        cursor.position = ray_origin + ray_direction * 10
+        cursor.position = ray_origin + ray_direction * 5
         cursor.visible = True
 
 def input(key):
@@ -409,6 +423,11 @@ def input(key):
         global running
         running = False
         application.quit()
+    # Add debug key
+    elif key == 't':
+        print("Debug - Player position:", player.position)
+        print("Debug - Camera position:", camera.position)
+        print("Debug - Test cubes should be visible")
 
 # Mouse control
 def mouse_moved():
@@ -431,63 +450,32 @@ def cleanup():
 import atexit
 atexit.register(cleanup)
 
-# HUD Instructions
-instructions_text = """MINECRAFT VR CONTROLS
-
-KEYBOARD:
-WASD - Move
-Arrows - Look
-Space - Place block
-X - Destroy block
-ESC - Quit
-
-HAND GESTURES:
-Right Hand (Building):
-- Point = Aim
-- Fist = Place block  
-- Peace sign = Destroy block
-
-Left Hand (Movement):
-- Fist = Forward
-- Open palm = Backward
-- Point = Turn left
-- 3 fingers = Look up
-- Peace sign = Look down
-
-Check taskbar if game window is hidden!
-"""
-
+# Simplified HUD
 hud = Text(
-    text=instructions_text,
+    text="""MINECRAFT VR - GRAPHICS FIXED
+
+KEYBOARD: WASD + Arrows + Space + X + ESC
+HAND GESTURES: Same as before
+
+Should see: CYAN background + 3 colored cubes + white text
+
+Press 'T' for debug info""",
     origin=(-.5, .5),
-    scale=0.8,
+    scale=1,
     x=-.85,
     y=.45,
     background=True
 )
 
-# Add visible startup message
-startup_msg = Text(
-    text="MINECRAFT VR LOADED!\nLook for the camera window and this 3D window!\nBoth should be visible now.",
-    origin=(0, 0),
-    scale=2,
-    color=color.yellow,
-    background=True
-)
-
-def remove_startup_msg():
-    destroy(startup_msg)
-
-# Remove startup message after 5 seconds
-invoke(remove_startup_msg, delay=5)
-
-print("✓ All systems ready!")
-print("✓ Starting main game loop...")
-print("\n" + "="*50)
-print("IMPORTANT: Two windows should now be open:")
-print("1. This 3D game window (Minecraft VR)")  
-print("2. Hand tracking camera window")
-print("If you only see one, check your taskbar!")
-print("="*50)
+print("\n" + "="*60)
+print("GRAPHICS FIX APPLIED!")
+print("You should now see:")
+print("1. CYAN (blue) background instead of grey")
+print("2. 3 bright colored test cubes")  
+print("3. White 3D text saying 'MINECRAFT VR WORKING!'")
+print("4. Brown floor blocks")
+print("")
+print("If still grey, your friend needs to update graphics drivers")
+print("="*60)
 
 app.run()

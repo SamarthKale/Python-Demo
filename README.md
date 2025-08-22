@@ -1,4 +1,4 @@
-# 🕹 Minecraft-VR + Mediapipe (Cyberpunk Style)
+# Python Demo
 
 This project combines two main components:
 1.  **Minecraft-like VR Game** 🧱 (built with the Ursina Engine)
